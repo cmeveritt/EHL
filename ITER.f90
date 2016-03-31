@@ -1,6 +1,7 @@
 ! Subrutine for itteration according to Reynolds equation of the timedependent solution
-	SUBROUTINE ITER(t,H00,G0,DW,kvot,DT2)
+	SUBROUTINE ITER(t,H00,DW,kvot,DT2)
     	implicit none
+        COMMON /G0DT/G0,DT                                              ! G0 and DT
         COMMON /CTRA4/ D, A
         COMMON /ITERp/ID
         COMMON /Visc/ENDA,A1,A2,A3,Z,HM0r, PH, Pref, alpha, EDA0         ! Lubrication parameters
@@ -37,7 +38,7 @@
         real        tauc_real, tauc, tauS, taua, taua2,xilim
         real        Ta,Tg0,YA1,YA2,YB1,YB2,YC1,YC2,Yedag,Yalfag
         real        kH, xH, gH, lH, L, M
-        real        kvot, DT2
+        real        kvot, DT, DT2
         real        dxidP, dxidPp, dROdP, dROdPp, dHdx, dHdxp, dPdx, dPdxp, d2ROdP2, d2xidP2 
         real        K00, K10, K20, K30, PAIAK
         real        D1, D2, D3,D4, D5,D1p, D2p, D3p,D4p, D5p
@@ -126,7 +127,7 @@
             ENDDO
             
             ! Now when the pressure is updated, update the other parameters based on the new pressure
-            CALL HREE(H00,G0,t)
+            CALL HREE(H00,t)
 100     CONTINUE
         
         load=sum(P)                     ! The load
