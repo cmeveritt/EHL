@@ -2,6 +2,7 @@
 
 For my EHL code
 
-Starting of at version 5840
+Uppdating the code to Version 5841
 
-with some 5841 files
+5841 contains som reorganizations of the main file 
+including a name change to Conv and Time

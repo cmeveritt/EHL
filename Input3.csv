@@ -1,0 +1,35 @@
+meth,ref,,,,,,Method of program,Meth=discretization,Ref=reference loadcase
+2,1,2,,,,,,,
+,,,,,,,,,
+"NX,","NY,","X0,","XE,",F Grid,,,setup,For all ref,
+60,40,-2,1.5,2,,,,,
+,,,,,,,,,
+"RX,",W0*(E5 if Cylinder),"Ua,","Ub,",,,,Geometry,For all ref,
+0.0139,15.6,0.485,1.455,,,,,,
+,,,,,,,,,
+Asph_real [um],aspw_real [um],,,,,,Asp Geoemtry,For all reff,
+0.11,50,,,,,,,,
+,,,,,,,,,
+Elast1 [GPa],Elast2 [GPa],EE [GPa],,,,,Geometry,Some ref use Elast other EE,
+206,206,226,,,,,,,
+,,,,,,,,,
+Z,EDA0,Pref *1e8,alpha*1E-8,,,,Lubrication,X.tan,case 1 and 2
+0.68,0.04,1.96,2.2,,,,,,
+,,,,,,,,,
+EDA0,alpha*1E-9,kH*1E-6,xH*1E-9,lH*1E-9,gH*1E-9,,Lubrication,Holmes,case 3
+0.0096,17,63.15,5.1,1.68,2.266,,,,
+,,,,,,,,,
+"Ta,","Tg0,","YA1,","YA2,","YB1,",YB2on,,Lubrication,Eheret,case 4 and 5
+32,-28.2,134.2,1.929,4.815,0.16,,,,
+,,,,,,,,,
+"YC1,","YC2,","Yedag,","Yalfag,","EDA0,",Z ,,Lubrication,Eheret,case 4 and 5
+16.01,20.69,1,3.814697,1,0.68,,,,
+,,,,,,,,,
+"tauc_real,","tauS,","taua2,",xilim ,,,,Solidification,Eheret,case 4 and 5
+25,0.4,0,0.9,,,,,,
+,,,,,,,,,
+"MK_stat,","MK_time,",ER_stat*1E-4,ER_time*1E-5,KK,,,Itteration parameters,For all ref,
+200,200,1,2,15,,,,,
+,,,,,,,,,
+"H00,",HM0f,,,,,, Uppdation of H00,For all ref,
+-1.4,0.5,,,,,,,,
