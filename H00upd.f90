@@ -1,79 +1,81 @@
-  ! To update the offset H00
-    SUBROUTINE H00upd(H00, t, DW)
+  ! To update the film thickness offset H00
+    ! Initially simpler equations were used boot these have prooven to be more stable
+    SUBROUTINE H00upd(H00, t, DW, SS, NYs, H00ink)
         implicit none
-        COMMON      /G0DT/G0,DT                                              ! G0 and DT
-        COMMON      /COMH/RAD(1:300,1:300)
-        COMMON      /H00/ H00past, DWpast, Sloadpast
-        COMMON      /Grid/NX,NY,X0,XE,DX                                                        ! Grid parameters
-        COMMON      /Visc/ENDA,A1,A2,A3,Z,HM0r, PH, Pref, alpha, EDA0                           ! Lubrication parameters
-        COMMON      /Current/P,H,RO,EPSx,EPSy,EDAx,EDAy,xi,W,Wside                              ! Current timestep
-        COMMON      /Past/Ppast,Hpast,ROpast,EPSxpast,EPSypast,EDAxpast,EDAypast,xipast,Wpast   ! Past
-        real         P(1:300,1:300),H(1:300,1:300),RO(1:300,1:300),EPSx(1:300,1:300),EPSy(1:300,1:300),EDAx(1:300,1:300),EDAy(1:300,1:300),xi(1:300,1:300),W(1:300,1:300),Wside(1:300,1:300)                      ! Current timestep
-        real         Ppast(1:300,1:300),Hpast(1:300,1:300),ROpast(1:300,1:300),EPSxpast(1:300,1:300),EPSypast(1:300,1:300),EDAxpast(1:300,1:300),EDAypast(1:300,1:300),xipast(1:300,1:300),Wpast(1:300,1:300)  ! Past
-        integer     I, J, loadupd, t,NX,NY
-        real        H0, H00, H00past, HMIN, H00ink
-        real        RAD,X0,XE,DX,DT
-        real        Sload, Sloadpast
-        real        load, loadpast, G0, DW, DWpast, loaddiff
-        real        ENDA,A1,A2,A3,Z,HM0r, PH, Pref, alpha, EDA0
-        real        SUM, minval
-        save        /H00/
+        include     'inc_Com_H00.h'
+        include     'inc_CurrentH.h'
+        include     'inc_Grid.h'
+        include     'inc_Ref.h'
+        include     'inc_Visc.h'                                                  ! Grid parameters
+        ! Input
+        integer     NYs,SS
+        real        DW
+        ! Calculations
+        integer     NN, I, J
+        real        HMIN
+        ! Other                    ! Current timestep
+        integer     t
+        !Output
+        real        H00,  H00ink
+        save        /Com_H00/
 
-            
-            !loadupd=0
-            HMIN=minval(H(1:NX,1:NY))
+        NN=(NYs+1)/2
+        
+        ! The minimum film thickness Hmin is used later to ensure that the film thickness is not decreased too much.  
+        ! Start guess and maximum value
+        Hmin=0.4                                    
+        
+        ! Only look for Hmin at used gridpoint for current level. 
+        DO J=1,NN,SS
+            Do I= 1,NX,SS                                                     !D_IN: /Grid/ -> Nx
+                IF( HMIN .GT. H(I,J)) then                                    !D_IN: /CurrentH/ -> H(I,J)
+                    HMIN = H(I,J) 
+                endif  
+            ENDDO
+        ENDDO
     
-            IF( HMIN .LT. 5E-6) HMIN = 5E-6
-            IF( HMIN .GT. 0.4)  HMIN = 0.4
-            
-            load=sum(P)                     ! The load
-           
-            Sload=DX*DX*load/G0             ! Normalized load
+        ! Limit the value of the minimum film thickness.    
+        IF( HMIN .LT. 5E-6) HMIN = 5E-6              
 
-            DW=Sload-1.0                    ! 1-scaled loadsum
-
-            !loadDiff=Sload-Sloadpast
+        IF( H00 .EQ. H00past) THEN                                            !D_IN: /Com_H00/ -> H00past
+            H00ink=DW*HM0r*HMIN                                               !D_IN: /Visc/ -> HM0r
+        ELSE  
+            H00ink=-DW/(DW-DWpast)*(H00-H00past)                              !D_IN: /Com_H00/ -> DWpast
+        ENDIF
+        
+        ! Rescaling the increment based on how much the load differs from the referential load. 
+        IF( Geom .EQ. 5) H00ink=H00ink*((PH*1E-9/2.3893356) )                 !D_IN: /Ref/ -> Geom; /Visc/ -> PH           
             
-            ! If the pressure is resonable, use the following to update the filmthickness
-            !IF( DW .LT.  0.01 .AND. loadDiff .LE. 0.01)  loadupd=1
-            !IF( DW .GT. -0.01 .AND. loadDiff .GE. -0.01) loadupd=1
-
+        ! Different limits if we're close to or fara away from load equilibrium
+        IF( abs(DW) .LT. 0.05) then
+            IF( H00ink .GT.  10*HMIN)  H00ink=  10*HMIN
+            IF( H00ink .LT. -0.9*Hmin) H00ink= -0.9*HMIN
+        else
+            IF( abs(H00ink) .GT.  0.1) H00ink= sign(0.1,H00ink)
+        endif
             
-            !IF( loadupd .EQ. 1) THEN
-                IF( H00 .EQ. H00past) THEN
-                    H00ink=DW*HM0r*HMIN
-                    IF( H00ink .GT.  0.9*HMIN) H00ink= 0.9*HMIN
-                    IF( H00ink .LT. -0.9*HMIN) H00ink=-0.9*HMIN
-                ELSE  
-                    H00ink=-DW/(DW-DWpast)*(H00-H00past)      
-                    IF( H00ink .GT.  0.9*HMIN) H00ink= 0.9*HMIN
-                    IF( H00ink .LT. -0.9*HMIN) H00ink=-0.9*HMIN
-                ENDIF
-            !ENDIF
+        ! If the lubrication film should decrease, be more carfull.     
+        IF( H00ink .LT. -0.9*HMIN) H00ink=-0.9*HMIN
+        IF(ABS(H00ink) .GT.  0.5*sqrt(ABS(DW))) H00ink = 0.5*sign(sqrt(abs(DW)),DW)         ! Ensuring not to bigg steps with aspects to the loadballance !SIGN(A,B) returns the value of A with the sign of B
             
-            ! Limiting the increment
-            !IF(DW .LT.  -0.1) H00ink = 0.6*H00ink
-            IF(ABS(H00ink) .GT.  0.5*sqrt(ABS(DW))) H00ink = 0.5*sign(sqrt(abs(DW)),DW)           ! Ensuring not to bigg steps with aspects to the loadballance !SIGN(A,B) returns the value of A with the sign of B
+        IF(t .GT. -11) H00ink=H00ink*0.1                                                    ! Lower the possibility for H00 updation if in the timedependent simulation.  ! Becouse then the timederivative of H00 will also affect the solution. 
             
-            !IF(t .GE. 0) H00ink=H00ink*0.1                                                         ! Lower the possibility for H00 updation if in the timedependent simulation. 
-                                                                                                    ! Becouse then the timederivative of H00 will also affect the solution. 
+        ! Ensuring the right derivative
+        IF( DW .GT. 0.0 .and. H00ink .LT. 0.0) H00ink=-H00ink*0.5                           ! Since a decrease in H00 will cause an increase in the load
+        IF( DW .LT. 0.0 .and. H00ink .GT. 0.0) H00ink=-H00ink*0.5
             
-            ! Ensuring the right derivative
-            IF( DW .GT. 0.0 .and. H00ink .LT. 0.0) H00ink=-H00ink*0.5                               ! Since a decrease in H00 will cause an increase in the load
-            IF( DW .LT. 0.0 .and. H00ink .GT. 0.0) H00ink=-H00ink*0.5
+        ! Uppdation H00
+        H00past=H00                                                           !D_OUT: H00past -> /Com_H00/
+        H00=H00+H00ink
             
-            ! Uppdation H00
-            H00past=H00
-            H00=H00+H00ink
+        !Updata others
+        DWpast=DW                                                             !D_OUT: DWpast -> /Com_H00/
             
-            !Updata others
-            DWpast=DW
-            Sloadpast=Sload
-            
-            ! Divergence check
-            if (H00 .GT. 5) stop 'Too High H00'                                    
-            if (H00 .LT. -5) stop 'Too Low H00'
-            
-            
+        ! Divergence check
+        if (H00 .GT. 20) stop 'Too High H00'                                    
+        if (H00 .LT. -5) stop 'Too Low H00'
+        
+        ! Update the parameters of the past timestep. This is used to get rid of unnessesery time derivatives in the statinary part of the simulation
+        If( t .LT. 0) call pastupd(0, NX, NN, SS)                        !CALL: No comment
         RETURN
     END
